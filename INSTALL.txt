@@ -1,0 +1,13 @@
+BLACKSECTOR Ranks TAB Icons
+
+1. Stop the CS2 server.
+2. Keep the old incompatible Ranks_FakeRank.dll disabled.
+3. Copy the game folder into the server root.
+4. Start the server.
+5. Run css_plugins list. It must show BLACKSECTOR Ranks TAB Icons.
+6. Join the server and open TAB.
+
+Requires Ranks Core 2.0.5, CounterStrikeSharp 1.0.374, FakeRanks Reveal All,
+MultiAddonManager, and Workshop item 3795532213.
+
+WARNING: Fake rank plugins may risk a Game Server Login Token ban.

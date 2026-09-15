@@ -1,0 +1,27 @@
+name: Build BLACKSECTOR Ranks TAB
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build
+        run: dotnet build BlackSectorRanksTab.csproj -c Release
+      - name: Package
+        run: |
+          mkdir -p package/game/csgo/addons/counterstrikesharp/plugins/BlackSectorRanksTab
+          cp bin/Release/net10.0/BlackSectorRanksTab.dll package/game/csgo/addons/counterstrikesharp/plugins/BlackSectorRanksTab/
+          if [ -f bin/Release/net10.0/BlackSectorRanksTab.deps.json ]; then cp bin/Release/net10.0/BlackSectorRanksTab.deps.json package/game/csgo/addons/counterstrikesharp/plugins/BlackSectorRanksTab/; fi
+          mkdir -p package/game/csgo/addons/counterstrikesharp/configs/plugins/RanksCore/Modules
+          cp config/ranks_fakerank.json package/game/csgo/addons/counterstrikesharp/configs/plugins/RanksCore/Modules/
+          cp INSTALL.txt package/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BLACKSECTOR_RANKS_TAB
+          path: package/
