@@ -12,7 +12,7 @@ namespace BlackSectorRanksTab;
 public sealed class BlackSectorRanksTab : BasePlugin
 {
     public override string ModuleName => "BLACKSECTOR Ranks TAB Icons";
-    public override string ModuleVersion => "2.5.0";
+    public override string ModuleVersion => "2.6.0";
     public override string ModuleAuthor => "BLACKSECTOR";
     public override string ModuleDescription => "Synchronizes Ranks Core levels with custom TAB rank icons";
 
@@ -35,9 +35,6 @@ public sealed class BlackSectorRanksTab : BasePlugin
 
         AddCommand("css_bsrank_test", "Force a TAB icon; -1 restores automatic mode", (player, info) =>
         {
-            if (player is not null)
-                return;
-
             if (info.ArgCount < 2 || !int.TryParse(info.GetArg(1), out _testIcon))
             {
                 Server.PrintToConsole("[BLACKSECTOR Ranks TAB] Usage: css_bsrank_test <icon>; use -1 for automatic mode.");
@@ -45,7 +42,9 @@ public sealed class BlackSectorRanksTab : BasePlugin
             }
 
             ApplyAndReveal(true);
-            Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] Test icon set to {_testIcon}; reveal sent.");
+            var confirmation = $"[BLACKSECTOR Ranks TAB] Test icon set to {_testIcon}; reveal sent.";
+            Server.PrintToConsole(confirmation);
+            player?.PrintToChat(confirmation);
         });
 
         RegisterListener<Listeners.OnTick>(() =>
@@ -56,7 +55,7 @@ public sealed class BlackSectorRanksTab : BasePlugin
             ApplyAndReveal(_tick % 32 == 0);
         });
 
-        Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] v2.5.0 loaded {_icons.Count} real VPK icon mappings.");
+        Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] v2.6.0 loaded {_icons.Count} real VPK icon mappings.");
     }
 
     private void LoadConfig()
