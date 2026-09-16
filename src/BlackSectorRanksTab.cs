@@ -2,6 +2,8 @@ using System.Text.Json;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes;
+using CounterStrikeSharp.API.Modules.UserMessages;
+using CounterStrikeSharp.API.Modules.Utils;
 using RanksApi;
 
 namespace BlackSectorRanksTab;
@@ -10,7 +12,7 @@ namespace BlackSectorRanksTab;
 public sealed class BlackSectorRanksTab : BasePlugin
 {
     public override string ModuleName => "BLACKSECTOR Ranks TAB Icons";
-    public override string ModuleVersion => "2.4.0";
+    public override string ModuleVersion => "2.5.0";
     public override string ModuleAuthor => "BLACKSECTOR";
     public override string ModuleDescription => "Synchronizes Ranks Core levels with custom TAB rank icons";
 
@@ -18,6 +20,7 @@ public sealed class BlackSectorRanksTab : BasePlugin
     private Dictionary<int, int> _icons = new();
     private int _maxLevel = 1;
     private int _testIcon = -1;
+    private int _tick;
 
     public override void OnAllPluginsLoaded(bool hotReload)
     {
@@ -41,11 +44,19 @@ public sealed class BlackSectorRanksTab : BasePlugin
                 return;
             }
 
-            Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] Test icon set to {_testIcon}.");
+            ApplyAndReveal(true);
+            Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] Test icon set to {_testIcon}; reveal sent.");
         });
 
-        RegisterListener<Listeners.OnTick>(UpdateRanks);
-        Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] v2.4.0 loaded {_icons.Count} real VPK icon mappings.");
+        RegisterListener<Listeners.OnTick>(() =>
+        {
+            _tick++;
+            // Reapply and reveal twice per second. This deliberately does not depend on
+            // the MetaMod FakeRanks connection-time message.
+            ApplyAndReveal(_tick % 32 == 0);
+        });
+
+        Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] v2.5.0 loaded {_icons.Count} real VPK icon mappings.");
     }
 
     private void LoadConfig()
@@ -80,14 +91,17 @@ public sealed class BlackSectorRanksTab : BasePlugin
         }
     }
 
-    private void UpdateRanks()
+    private void ApplyAndReveal(bool reveal)
     {
         if (_ranksApi is null || _icons.Count == 0)
             return;
 
+        var recipients = new RecipientFilter();
+
         foreach (var player in Utilities.GetPlayers())
         {
-            if (!player.IsValid || player.IsBot || player.IsHLTV)
+            if (!player.IsValid || player.Connected != PlayerConnectedState.PlayerConnected ||
+                player.IsBot || player.IsHLTV)
                 continue;
 
             var level = Math.Clamp(_ranksApi.GetPlayerRank(player), 1, _maxLevel);
@@ -95,13 +109,22 @@ public sealed class BlackSectorRanksTab : BasePlugin
                 ? _testIcon
                 : _icons.TryGetValue(level, out var mapped) ? mapped : _icons[1];
 
-            player.CompetitiveWins = 10;
+            player.CompetitiveWins = 111;
             player.CompetitiveRankType = 12;
             player.CompetitiveRanking = icon;
 
-            // This is the current working CounterStrikeSharp pattern.
-            // FakeRanks - Reveal All handles ServerRankRevealAll at MetaMod level.
+            Utilities.SetStateChanged(player, "CCSPlayerController", "m_iCompetitiveWins");
             Utilities.SetStateChanged(player, "CCSPlayerController", "m_iCompetitiveRankType");
+            Utilities.SetStateChanged(player, "CCSPlayerController", "m_iCompetitiveRanking");
+
+            if (reveal)
+                recipients.Add(player);
+        }
+
+        if (reveal && recipients.Count > 0)
+        {
+            using var message = UserMessage.FromPartialName("CCSUsrMsg_ServerRankRevealAll");
+            message.Send(recipients);
         }
     }
 }
