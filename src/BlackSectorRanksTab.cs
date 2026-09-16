@@ -13,7 +13,7 @@ namespace BlackSectorRanksTab;
 public sealed class BlackSectorRanksTab : BasePlugin
 {
     public override string ModuleName => "BLACKSECTOR Ranks TAB Icons";
-    public override string ModuleVersion => "2.2.0";
+    public override string ModuleVersion => "2.3.0";
     public override string ModuleAuthor => "BLACKSECTOR";
     public override string ModuleDescription => "Synchronizes Ranks Core levels with custom TAB rank icons";
 
@@ -49,7 +49,7 @@ public sealed class BlackSectorRanksTab : BasePlugin
             Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] Test icon set to {_testIcon}.");
         });
 
-        Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] v2.2.0 loaded {_icons.Count} icon mappings.");
+        Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] v2.3.0 loaded {_icons.Count} icon mappings.");
     }
 
     private void LoadConfig()
@@ -124,6 +124,11 @@ public sealed class BlackSectorRanksTab : BasePlugin
             player.CompetitiveWins = 777;
             player.CompetitiveRankType = (sbyte)_rankType;
             player.CompetitiveRanking = icon;
+
+            Utilities.SetStateChanged(player, "CCSPlayerController", "m_iCompetitiveWins");
+            Utilities.SetStateChanged(player, "CCSPlayerController", "m_iCompetitiveRankType");
+            Utilities.SetStateChanged(player, "CCSPlayerController", "m_iCompetitiveRanking");
+
             recipients.Add(player);
         }
 
