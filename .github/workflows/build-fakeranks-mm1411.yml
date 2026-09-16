@@ -61,7 +61,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          python ../configure.py --enable-optimize --symbol-files --sdks cs2 --hl2sdk-manifests ../../hl2sdk-manifests --mms_path ../../mmsource-2.0
+          python ../configure.py --enable-optimize --symbol-files --sdks cs2 --hl2sdk-manifests ../hl2sdk-manifests --mms_path ../mmsource-2.0
           ambuild
 
       - name: Upload Linux package
