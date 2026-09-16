@@ -2,8 +2,6 @@ using System.Text.Json;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes;
-using CounterStrikeSharp.API.Core.Capabilities;
-using CounterStrikeSharp.API.Modules.Timers;
 using CounterStrikeSharp.API.Modules.UserMessages;
 using CounterStrikeSharp.API.Modules.Utils;
 using RanksApi;
@@ -14,18 +12,18 @@ namespace BlackSectorRanksTab;
 public sealed class BlackSectorRanksTab : BasePlugin
 {
     public override string ModuleName => "BLACKSECTOR Ranks TAB Icons";
-    public override string ModuleVersion => "2.0.0";
+    public override string ModuleVersion => "2.1.0";
     public override string ModuleAuthor => "BLACKSECTOR";
     public override string ModuleDescription => "Synchronizes Ranks Core levels with custom TAB rank icons";
 
-    private readonly PluginCapability<IRanksApi> _ranksCapability = new("ranks-core:api");
     private IRanksApi? _ranksApi;
     private Dictionary<int, int> _icons = new();
     private int _rankType = 12;
+    private int _maxLevel = 1;
 
     public override void OnAllPluginsLoaded(bool hotReload)
     {
-        _ranksApi = _ranksCapability.Get();
+        _ranksApi = IRanksApi.Capability.Get();
         if (_ranksApi is null)
         {
             Server.PrintToConsole("[BLACKSECTOR Ranks TAB] Ranks Core API unavailable.");
@@ -33,8 +31,8 @@ public sealed class BlackSectorRanksTab : BasePlugin
         }
 
         LoadConfig();
-        AddTimer(1.0f, UpdateRanks, TimerFlags.REPEAT);
-        Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] Loaded {_icons.Count} icon mappings.");
+        RegisterListener<Listeners.OnTick>(UpdateRanks);
+        Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] v2.1.0 loaded {_icons.Count} icon mappings.");
     }
 
     private void LoadConfig()
@@ -57,6 +55,7 @@ public sealed class BlackSectorRanksTab : BasePlugin
             var type = ReadInt(root.GetProperty("Type"));
             _rankType = type switch
             {
+                0 => 11,
                 2 => 7,
                 3 => 11,
                 _ => 12
@@ -70,6 +69,7 @@ public sealed class BlackSectorRanksTab : BasePlugin
             }
 
             _icons = mappings;
+            _maxLevel = _icons.Count > 0 ? _icons.Keys.Max() : 1;
         }
         catch (Exception exception)
         {
@@ -87,32 +87,36 @@ public sealed class BlackSectorRanksTab : BasePlugin
 
     private void UpdateRanks()
     {
-        if (_ranksApi is null)
+        if (_ranksApi is null || _icons.Count == 0)
             return;
 
         var recipients = new RecipientFilter();
 
         foreach (var player in Utilities.GetPlayers())
         {
-            if (!player.IsValid || player.IsBot)
+            if (!player.IsValid ||
+                player.Connected != PlayerConnectedState.PlayerConnected ||
+                player.IsBot ||
+                player.IsHLTV)
                 continue;
 
-            var level = _ranksApi.GetPlayerRank(player);
-            var icon = level > 0 && _icons.TryGetValue(level, out var configuredIcon)
+            var level = Math.Clamp(_ranksApi.GetPlayerRank(player), 1, _maxLevel);
+            var icon = _icons.TryGetValue(level, out var configuredIcon)
                 ? configuredIcon
-                : 0;
+                : _icons[1];
 
-            if (player.CompetitiveRankType == (sbyte)_rankType &&
-                player.CompetitiveRanking == icon)
-                continue;
-
+            player.CompetitiveWins = 777;
             player.CompetitiveRankType = (sbyte)_rankType;
             player.CompetitiveRanking = icon;
-            player.CompetitiveWins = 777;
-            recipients.Add(player);
+
+            // The reveal message must be sent while the player is holding TAB.
+            // Sending it only when the rank changes leaves the scoreboard column empty.
+            var buttons = player.Buttons;
+            if (buttons != 0 && buttons.ToString().Contains("858993"))
+                recipients.Add(player);
         }
 
         if (recipients.Count > 0)
-            UserMessage.FromId(350).Send(recipients);
+            UserMessage.FromPartialName("CCSUsrMsg_ServerRankRevealAll").Send(recipients);
     }
 }
