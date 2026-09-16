@@ -100,8 +100,7 @@ public sealed class BlackSectorRanksTab : BasePlugin
 
         foreach (var player in Utilities.GetPlayers())
         {
-            if (!player.IsValid || player.Connected != PlayerConnectedState.PlayerConnected ||
-                player.IsBot || player.IsHLTV)
+            if (!player.IsValid || player.IsBot || player.IsHLTV)
                 continue;
 
             var level = Math.Clamp(_ranksApi.GetPlayerRank(player), 1, _maxLevel);
