@@ -59,6 +59,7 @@ jobs:
       - name: Build
         working-directory: FakeRanks-RevealAll
         run: |
+          sed -i "/tier1.*generichash.cpp/d" AMBuilder
           mkdir build
           cd build
           python ../configure.py --enable-optimize --symbol-files --sdks cs2 --hl2sdk-root "$GITHUB_WORKSPACE" --hl2sdk-manifests "$GITHUB_WORKSPACE/hl2sdk-manifests" --mms_path "$GITHUB_WORKSPACE/mmsource-2.0"
