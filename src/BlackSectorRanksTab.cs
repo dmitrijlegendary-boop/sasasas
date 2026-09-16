@@ -2,7 +2,7 @@ using System.Text.Json;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes;
-using CounterStrikeSharp.API.Modules.UserMessages;
+using CounterStrikeSharp.API.Modules.Timers;\nusing CounterStrikeSharp.API.Modules.UserMessages;
 using CounterStrikeSharp.API.Modules.Utils;
 using RanksApi;
 
@@ -12,14 +12,14 @@ namespace BlackSectorRanksTab;
 public sealed class BlackSectorRanksTab : BasePlugin
 {
     public override string ModuleName => "BLACKSECTOR Ranks TAB Icons";
-    public override string ModuleVersion => "2.1.0";
+    public override string ModuleVersion => "2.2.0";
     public override string ModuleAuthor => "BLACKSECTOR";
     public override string ModuleDescription => "Synchronizes Ranks Core levels with custom TAB rank icons";
 
     private IRanksApi? _ranksApi;
     private Dictionary<int, int> _icons = new();
     private int _rankType = 12;
-    private int _maxLevel = 1;
+    private int _maxLevel = 1;\n    private int _testIcon = -1;
 
     public override void OnAllPluginsLoaded(bool hotReload)
     {
@@ -100,19 +100,17 @@ public sealed class BlackSectorRanksTab : BasePlugin
                 continue;
 
             var level = Math.Clamp(_ranksApi.GetPlayerRank(player), 1, _maxLevel);
-            var icon = _icons.TryGetValue(level, out var configuredIcon)
-                ? configuredIcon
-                : _icons[1];
+            var icon = _testIcon >= 0
+                ? _testIcon
+                : _icons.TryGetValue(level, out var configuredIcon)
+                    ? configuredIcon
+                    : _icons[1];
 
             player.CompetitiveWins = 777;
             player.CompetitiveRankType = (sbyte)_rankType;
             player.CompetitiveRanking = icon;
 
-            // The reveal message must be sent while the player is holding TAB.
-            // Sending it only when the rank changes leaves the scoreboard column empty.
-            var buttons = player.Buttons;
-            if (buttons != 0 && buttons.ToString().Contains("858993"))
-                recipients.Add(player);
+            recipients.Add(player);
         }
 
         if (recipients.Count > 0)
