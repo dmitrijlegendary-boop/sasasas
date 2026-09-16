@@ -95,7 +95,6 @@ public sealed class BlackSectorRanksTab : BasePlugin
         foreach (var player in Utilities.GetPlayers())
         {
             if (!player.IsValid ||
-                player.Connected != PlayerConnectedState.PlayerConnected ||
                 player.IsBot ||
                 player.IsHLTV)
                 continue;
