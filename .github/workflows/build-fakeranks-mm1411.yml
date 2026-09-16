@@ -1,0 +1,71 @@
+name: Build FakeRanks for MM1411
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/build-fakeranks-mm1411.yml'
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    container: registry.gitlab.steamos.cloud/steamrt/sniper/sdk
+    steps:
+      - name: Checkout FakeRanks
+        uses: actions/checkout@v4
+        with:
+          repository: Cruze03/FakeRanks-RevealAll
+          path: FakeRanks-RevealAll
+          submodules: recursive
+
+      - name: Checkout Metamod 1411
+        uses: actions/checkout@v4
+        with:
+          repository: alliedmodders/metamod-source
+          ref: 7ec0f16
+          path: mmsource-2.0
+          submodules: recursive
+
+      - name: Checkout current HL2SDK
+        uses: actions/checkout@v4
+        with:
+          repository: alliedmodders/hl2sdk
+          ref: cs2
+          path: hl2sdk-cs2
+
+      - name: Checkout HL2SDK manifests
+        uses: actions/checkout@v4
+        with:
+          repository: alliedmodders/hl2sdk-manifests
+          ref: master
+          path: hl2sdk-manifests
+
+      - name: Checkout AMBuild
+        uses: actions/checkout@v4
+        with:
+          repository: alliedmodders/ambuild
+          path: ambuild
+
+      - name: Install build dependencies
+        run: |
+          cd ambuild
+          python setup.py install
+          cd ..
+          apt update
+          apt install -y clang-16
+          ln -sf /usr/bin/clang-16 /usr/bin/clang
+          ln -sf /usr/bin/clang++-16 /usr/bin/clang++
+
+      - name: Build
+        working-directory: FakeRanks-RevealAll
+        run: |
+          mkdir build
+          cd build
+          python ../configure.py --enable-optimize --symbol-files --sdks cs2 --hl2sdk-manifests ../../hl2sdk-manifests --mms_path ../../mmsource-2.0
+          ambuild
+
+      - name: Upload Linux package
+        uses: actions/upload-artifact@v4
+        with:
+          name: FakeRanks-RevealAll-MM1411-SeptemberFix
+          path: FakeRanks-RevealAll/build/package
