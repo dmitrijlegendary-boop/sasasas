@@ -2,9 +2,6 @@ using System.Text.Json;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes;
-using CounterStrikeSharp.API.Modules.Timers;
-using CounterStrikeSharp.API.Modules.UserMessages;
-using CounterStrikeSharp.API.Modules.Utils;
 using RanksApi;
 
 namespace BlackSectorRanksTab;
@@ -13,13 +10,12 @@ namespace BlackSectorRanksTab;
 public sealed class BlackSectorRanksTab : BasePlugin
 {
     public override string ModuleName => "BLACKSECTOR Ranks TAB Icons";
-    public override string ModuleVersion => "2.3.0";
+    public override string ModuleVersion => "2.4.0";
     public override string ModuleAuthor => "BLACKSECTOR";
     public override string ModuleDescription => "Synchronizes Ranks Core levels with custom TAB rank icons";
 
     private IRanksApi? _ranksApi;
     private Dictionary<int, int> _icons = new();
-    private int _rankType = 12;
     private int _maxLevel = 1;
     private int _testIcon = -1;
 
@@ -33,9 +29,8 @@ public sealed class BlackSectorRanksTab : BasePlugin
         }
 
         LoadConfig();
-        AddTimer(0.2f, UpdateRanks, TimerFlags.REPEAT);
 
-        AddCommand("css_bsrank_test", "Force a TAB icon: css_bsrank_test <icon>, -1 restores automatic mode", (player, info) =>
+        AddCommand("css_bsrank_test", "Force a TAB icon; -1 restores automatic mode", (player, info) =>
         {
             if (player is not null)
                 return;
@@ -49,13 +44,13 @@ public sealed class BlackSectorRanksTab : BasePlugin
             Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] Test icon set to {_testIcon}.");
         });
 
-        Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] v2.3.0 loaded {_icons.Count} icon mappings.");
+        RegisterListener<Listeners.OnTick>(UpdateRanks);
+        Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] v2.4.0 loaded {_icons.Count} real VPK icon mappings.");
     }
 
     private void LoadConfig()
     {
-        var path = Path.Combine(
-            Application.RootDirectory,
+        var path = Path.Combine(Application.RootDirectory,
             "configs/plugins/RanksCore/Modules/ranks_fakerank.json");
 
         if (!File.Exists(path))
@@ -67,22 +62,13 @@ public sealed class BlackSectorRanksTab : BasePlugin
         try
         {
             using var document = JsonDocument.Parse(File.ReadAllText(path));
-            var root = document.RootElement;
-
-            var type = ReadInt(root.GetProperty("Type"));
-            _rankType = type switch
-            {
-                0 => 11,
-                2 => 7,
-                3 => 11,
-                _ => 12
-            };
-
             var mappings = new Dictionary<int, int>();
-            foreach (var item in root.GetProperty("FakeRank").EnumerateObject())
+            foreach (var item in document.RootElement.GetProperty("FakeRank").EnumerateObject())
             {
                 if (int.TryParse(item.Name, out var level))
-                    mappings[level] = ReadInt(item.Value);
+                    mappings[level] = item.Value.ValueKind == JsonValueKind.Number
+                        ? item.Value.GetInt32()
+                        : int.Parse(item.Value.GetString()!);
             }
 
             _icons = mappings;
@@ -94,20 +80,10 @@ public sealed class BlackSectorRanksTab : BasePlugin
         }
     }
 
-    private static int ReadInt(JsonElement value)
-    {
-        if (value.ValueKind == JsonValueKind.Number)
-            return value.GetInt32();
-
-        return int.TryParse(value.GetString(), out var result) ? result : 0;
-    }
-
     private void UpdateRanks()
     {
         if (_ranksApi is null || _icons.Count == 0)
             return;
-
-        var recipients = new RecipientFilter();
 
         foreach (var player in Utilities.GetPlayers())
         {
@@ -117,22 +93,15 @@ public sealed class BlackSectorRanksTab : BasePlugin
             var level = Math.Clamp(_ranksApi.GetPlayerRank(player), 1, _maxLevel);
             var icon = _testIcon >= 0
                 ? _testIcon
-                : _icons.TryGetValue(level, out var configuredIcon)
-                    ? configuredIcon
-                    : _icons[1];
+                : _icons.TryGetValue(level, out var mapped) ? mapped : _icons[1];
 
-            player.CompetitiveWins = 777;
-            player.CompetitiveRankType = (sbyte)_rankType;
+            player.CompetitiveWins = 10;
+            player.CompetitiveRankType = 12;
             player.CompetitiveRanking = icon;
 
-            Utilities.SetStateChanged(player, "CCSPlayerController", "m_iCompetitiveWins");
+            // This is the current working CounterStrikeSharp pattern.
+            // FakeRanks - Reveal All handles ServerRankRevealAll at MetaMod level.
             Utilities.SetStateChanged(player, "CCSPlayerController", "m_iCompetitiveRankType");
-            Utilities.SetStateChanged(player, "CCSPlayerController", "m_iCompetitiveRanking");
-
-            recipients.Add(player);
         }
-
-        if (recipients.Count > 0)
-            UserMessage.FromPartialName("CCSUsrMsg_ServerRankRevealAll").Send(recipients);
     }
 }
