@@ -2,7 +2,8 @@ using System.Text.Json;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes;
-using CounterStrikeSharp.API.Modules.Timers;\nusing CounterStrikeSharp.API.Modules.UserMessages;
+using CounterStrikeSharp.API.Modules.Timers;
+using CounterStrikeSharp.API.Modules.UserMessages;
 using CounterStrikeSharp.API.Modules.Utils;
 using RanksApi;
 
@@ -19,7 +20,8 @@ public sealed class BlackSectorRanksTab : BasePlugin
     private IRanksApi? _ranksApi;
     private Dictionary<int, int> _icons = new();
     private int _rankType = 12;
-    private int _maxLevel = 1;\n    private int _testIcon = -1;
+    private int _maxLevel = 1;
+    private int _testIcon = -1;
 
     public override void OnAllPluginsLoaded(bool hotReload)
     {
@@ -31,8 +33,23 @@ public sealed class BlackSectorRanksTab : BasePlugin
         }
 
         LoadConfig();
-        RegisterListener<Listeners.OnTick>(UpdateRanks);
-        Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] v2.1.0 loaded {_icons.Count} icon mappings.");
+        AddTimer(0.2f, UpdateRanks, TimerFlags.REPEAT);
+
+        AddCommand("css_bsrank_test", "Force a TAB icon: css_bsrank_test <icon>, -1 restores automatic mode", (player, info) =>
+        {
+            if (player is not null)
+                return;
+
+            if (info.ArgCount < 2 || !int.TryParse(info.GetArg(1), out _testIcon))
+            {
+                Server.PrintToConsole("[BLACKSECTOR Ranks TAB] Usage: css_bsrank_test <icon>; use -1 for automatic mode.");
+                return;
+            }
+
+            Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] Test icon set to {_testIcon}.");
+        });
+
+        Server.PrintToConsole($"[BLACKSECTOR Ranks TAB] v2.2.0 loaded {_icons.Count} icon mappings.");
     }
 
     private void LoadConfig()
@@ -94,9 +111,7 @@ public sealed class BlackSectorRanksTab : BasePlugin
 
         foreach (var player in Utilities.GetPlayers())
         {
-            if (!player.IsValid ||
-                player.IsBot ||
-                player.IsHLTV)
+            if (!player.IsValid || player.IsBot || player.IsHLTV)
                 continue;
 
             var level = Math.Clamp(_ranksApi.GetPlayerRank(player), 1, _maxLevel);
@@ -109,7 +124,6 @@ public sealed class BlackSectorRanksTab : BasePlugin
             player.CompetitiveWins = 777;
             player.CompetitiveRankType = (sbyte)_rankType;
             player.CompetitiveRanking = icon;
-
             recipients.Add(player);
         }
 
